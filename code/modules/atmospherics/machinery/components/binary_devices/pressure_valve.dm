@@ -27,7 +27,7 @@
 		on = !on
 		balloon_alert(user, "turned [on ? "on" : "off"]")
 		investigate_log("was turned [on ? "on" : "off"] by [key_name(user)]", INVESTIGATE_ATMOS)
-		update_appearance()
+		update_appearance(UPDATE_ICON)
 		return CLICK_ACTION_SUCCESS
 	return CLICK_ACTION_BLOCKING
 
@@ -38,7 +38,7 @@
 	target_pressure = MAX_OUTPUT_PRESSURE
 	investigate_log("was set to [target_pressure] kPa by [key_name(user)]", INVESTIGATE_ATMOS)
 	balloon_alert(user, "target pressure set to [target_pressure] kPa")
-	update_appearance()
+	update_appearance(UPDATE_ICON)
 	return CLICK_ACTION_SUCCESS
 
 /obj/machinery/atmospherics/components/binary/pressure_valve/update_icon_nopipes()
@@ -54,11 +54,12 @@
 	if(!on || !is_operational)
 		return
 
-	var/datum/gas_mixture/air1 = airs[1]
-	var/datum/gas_mixture/air2 = airs[2]
+	var/datum/gas_mixture/input_air = airs[1]
+	var/datum/gas_mixture/output_air = airs[2]
+	var/datum/gas_mixture/output_pipenet_air = parents[2].air
 
-	if(air1.return_pressure() > target_pressure)
-		if(air1.release_gas_to(air2, air1.return_pressure()))
+	if(input_air.return_pressure() > target_pressure)
+		if(input_air.release_gas_to(output_air, input_air.return_pressure(), output_pipenet_air = output_pipenet_air))
 			update_parents()
 			is_gas_flowing = TRUE
 	else
@@ -83,7 +84,7 @@
 	data["max_pressure"] = round(ONE_ATMOSPHERE*100)
 	return data
 
-/obj/machinery/atmospherics/components/binary/pressure_valve/ui_act(action, params)
+/obj/machinery/atmospherics/components/binary/pressure_valve/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
 	. = ..()
 	if(.)
 		return
@@ -103,7 +104,7 @@
 			if(.)
 				target_pressure = clamp(pressure, 0, ONE_ATMOSPHERE*100)
 				investigate_log("was set to [target_pressure] kPa by [key_name(usr)]", INVESTIGATE_ATMOS)
-	update_appearance()
+	update_appearance(UPDATE_ICON)
 
 /obj/machinery/atmospherics/components/binary/pressure_valve/can_unwrench(mob/user)
 	. = ..()

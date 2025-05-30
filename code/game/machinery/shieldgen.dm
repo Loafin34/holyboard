@@ -236,7 +236,7 @@
 		set_anchored(FALSE)
 
 
-/obj/machinery/shieldgen/attackby(obj/item/W, mob/user, params)
+/obj/machinery/shieldgen/attackby(obj/item/W, mob/user, list/modifiers, list/attack_modifiers)
 	if(istype(W, /obj/item/stack/cable_coil) && (machine_stat & BROKEN) && panel_open)
 		var/obj/item/stack/cable_coil/coil = W
 		if (coil.get_amount() < 1)
@@ -324,6 +324,8 @@
 
 /obj/machinery/power/shieldwallgen/Initialize(mapload)
 	. = ..()
+	//Add to the early process queue to prioritize power draw
+	SSmachines.processing_early += src
 	if(anchored)
 		connect_to_network()
 	RegisterSignal(src, COMSIG_ATOM_SINGULARITY_TRY_MOVE, PROC_REF(block_singularity_if_active))
@@ -356,7 +358,7 @@
 		return FALSE
 	. = ..()
 
-/obj/machinery/power/shieldwallgen/process()
+/obj/machinery/power/shieldwallgen/process_early()
 	if(active)
 		if(active == ACTIVE_SETUPFIELDS)
 			var/fields = 0
@@ -458,7 +460,7 @@
 		return
 	return default_deconstruction_crowbar(tool)
 
-/obj/machinery/power/shieldwallgen/attackby(obj/item/W, mob/user, params)
+/obj/machinery/power/shieldwallgen/attackby(obj/item/W, mob/user, list/modifiers, list/attack_modifiers)
 	. = ..()
 	if(W.GetID())
 		if(allowed(user) && !(obj_flags & EMAGGED))

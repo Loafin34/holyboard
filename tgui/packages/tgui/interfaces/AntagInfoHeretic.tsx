@@ -1,8 +1,16 @@
-import { BooleanLike } from 'common/react';
 import { useState } from 'react';
+import {
+  Box,
+  Button,
+  DmIcon,
+  Flex,
+  Section,
+  Stack,
+  Tabs,
+} from 'tgui-core/components';
+import { BooleanLike } from 'tgui-core/react';
 
 import { useBackend } from '../backend';
-import { Box, Button, DmIcon, Flex, Section, Stack, Tabs } from '../components';
 import { Window } from '../layouts';
 import {
   Objective,
@@ -151,7 +159,8 @@ const GuideSection = () => {
           &nbsp;around the station invisible to the normal eye and&nbsp;
           <b>right click</b> on them to harvest them for&nbsp;
           <span style={hereticBlue}>knowledge points</span>. Tapping them makes
-          them visible to all after a short time.
+          them visible to all after a short time. Dreaming of Mansus may help to
+          find them.
         </Stack.Item>
         <Stack.Item>
           - Use your&nbsp;

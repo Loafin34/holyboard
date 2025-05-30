@@ -1,6 +1,6 @@
-import { BooleanLike } from 'common/react';
 import { useState } from 'react';
 import {
+  Blink,
   BlockQuote,
   Collapsible,
   Modal,
@@ -8,6 +8,7 @@ import {
   Stack,
   Tabs,
 } from 'tgui-core/components';
+import { BooleanLike } from 'tgui-core/react';
 
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
@@ -125,7 +126,7 @@ const MarketCrashing = (props) => {
   }
   return (
     <Modal textAlign="center" mr={1.5}>
-      <blink>OH GOD THE ECONOMY IS RUINED.</blink>
+      <Blink>OH GOD THE ECONOMY IS RUINED.</Blink>
     </Modal>
   );
 };

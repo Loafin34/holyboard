@@ -3,6 +3,7 @@
 
 	name = "air scrubber"
 	desc = "Has a valve and pump attached to it."
+	construction_type = /obj/item/pipe/directional/scrubber
 	use_power = IDLE_POWER_USE
 	idle_power_usage = BASE_MACHINE_IDLE_CONSUMPTION * 0.1
 	active_power_usage = BASE_MACHINE_ACTIVE_CONSUMPTION * 0.15
@@ -295,7 +296,7 @@
 		else
 			user.visible_message(span_notice("[user] unwelds the scrubber."), span_notice("You unweld the scrubber."), span_hear("You hear welding."))
 			welded = FALSE
-		update_appearance()
+		update_appearance(UPDATE_ICON)
 		pipe_vision_img = image(src, loc, dir = dir)
 		SET_PLANE_EXPLICIT(pipe_vision_img, ABOVE_HUD_PLANE, src)
 		investigate_log("was [welded ? "welded shut" : "unwelded"] by [key_name(user)]", INVESTIGATE_ATMOS)
@@ -318,10 +319,10 @@
 		return
 	user.visible_message(span_warning("[user] furiously claws at [src]!"), span_notice("You manage to clear away the stuff blocking the scrubber."), span_hear("You hear loud scraping noises."))
 	welded = FALSE
-	update_appearance()
+	update_appearance(UPDATE_ICON)
 	pipe_vision_img = image(src, loc, dir = dir)
 	SET_PLANE_EXPLICIT(pipe_vision_img, ABOVE_HUD_PLANE, src)
-	playsound(loc, 'sound/weapons/bladeslice.ogg', 100, TRUE)
+	playsound(loc, 'sound/items/weapons/bladeslice.ogg', 100, TRUE)
 
 
 /obj/machinery/atmospherics/components/unary/vent_scrubber/layer2

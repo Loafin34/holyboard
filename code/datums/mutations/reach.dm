@@ -17,7 +17,7 @@
 
 /datum/mutation/human/telekinesis/on_acquiring(mob/living/carbon/human/homan)
 	. = ..()
-	if(.)
+	if(!.)
 		return
 	RegisterSignal(homan, COMSIG_MOB_ATTACK_RANGED, PROC_REF(on_ranged_attack))
 
@@ -51,7 +51,7 @@
 
 /datum/mutation/human/elastic_arms/on_acquiring(mob/living/carbon/human/homan)
 	. = ..()
-	if(.)
+	if(!.)
 		return
 	RegisterSignal(homan, COMSIG_ATOM_CANREACH, PROC_REF(on_canreach))
 	RegisterSignal(homan, COMSIG_LIVING_TRY_PUT_IN_HAND, PROC_REF(on_owner_equipping_item))
@@ -66,7 +66,7 @@
 /// signal sent when prompting if an item can be equipped
 /datum/mutation/human/elastic_arms/proc/on_owner_equipping_item(mob/living/carbon/human/owner, obj/item/pick_item)
 	SIGNAL_HANDLER
-	if(pick_item.w_class > WEIGHT_CLASS_BULKY) // cant decide if i should limit to huge or bulky.
+	if((pick_item.w_class > WEIGHT_CLASS_BULKY) && !(pick_item.item_flags & ABSTRACT|HAND_ITEM)) // cant decide if i should limit to huge or bulky.
 		pick_item.balloon_alert(owner, "arms too floppy to wield!")
 		return COMPONENT_LIVING_CANT_PUT_IN_HAND
 

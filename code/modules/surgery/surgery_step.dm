@@ -96,6 +96,12 @@
 	var/fail_prob = 0//100 - fail_prob = success_prob
 	var/advance = FALSE
 
+	if(!chem_check(target))
+		user.balloon_alert(user, "missing [LOWER_TEXT(get_chem_list())]!")
+		to_chat(user, span_warning("[target] is missing the [LOWER_TEXT(get_chem_list())] required to perform this surgery step!"))
+		surgery.step_in_progress = FALSE
+		return FALSE
+
 	if(preop(user, target, target_zone, tool, surgery) == SURGERY_STEP_FAIL)
 		update_surgery_mood(target, SURGERY_STATE_FAILURE)
 		surgery.step_in_progress = FALSE
@@ -134,9 +140,7 @@
 
 	if(do_after(user, modded_time, target = target, interaction_key = user.has_status_effect(/datum/status_effect/hippocratic_oath) ? target : DOAFTER_SOURCE_SURGERY)) //If we have the hippocratic oath, we can perform one surgery on each target, otherwise we can only do one surgery in total.
 
-		var/chem_check_result = chem_check(target)
-		if((prob(100-fail_prob) || (iscyborg(user) && !silicons_obey_prob)) && chem_check_result && !try_to_fail)
-
+		if((prob(100-fail_prob) || (iscyborg(user) && !silicons_obey_prob)) && !try_to_fail)
 			if(success(user, target, target_zone, tool, surgery))
 				update_surgery_mood(target, SURGERY_STATE_SUCCESS)
 				play_success_sound(user, target, target_zone, tool, surgery)
@@ -146,8 +150,6 @@
 				play_failure_sound(user, target, target_zone, tool, surgery)
 				update_surgery_mood(target, SURGERY_STATE_FAILURE)
 				advance = TRUE
-			if(chem_check_result)
-				return .(user, target, target_zone, tool, surgery, try_to_fail) //automatically re-attempt if failed for reason other than lack of required chemical
 		if(advance && !repeatable)
 			surgery.status++
 			if(surgery.status > surgery.steps.len)
@@ -172,12 +174,17 @@
 		CRASH("Not passed a target, how did we get here?")
 	if(!surgery_effects_mood)
 		return
-	if(HAS_TRAIT(target, TRAIT_ANALGESIA))
-		target.clear_mood_event(SURGERY_MOOD_CATEGORY) //incase they gained the trait mid-surgery. has the added side effect that if someone has a bad surgical memory/mood and gets drunk & goes back to surgery, they'll forget they hated it, which is kinda funny imo.
+	// Determine how drunk our patient is
+	var/drunken_patient = target.get_drunk_amount()
+	// Create a probability to ignore the pain based on drunkenness level
+	var/drunken_ignorance_probability = clamp(drunken_patient, 0, 90)
+
+	if(HAS_TRAIT(target, TRAIT_ANALGESIA) || drunken_patient && prob(drunken_ignorance_probability))
+		target.clear_mood_event(SURGERY_MOOD_CATEGORY) //incase they gained the trait mid-surgery (or became drunk). has the added side effect that if someone has a bad surgical memory/mood and gets drunk & goes back to surgery, they'll forget they hated it, which is kinda funny imo.
 		return
 	if(target.stat >= UNCONSCIOUS)
-		var/datum/mood_event/surgery/target_mood_event = target.mob_mood.mood_events[SURGERY_MOOD_CATEGORY]
-		if(target_mood_event?.surgery_completed) //don't give sleeping mobs trauma. that said, if they fell asleep mid-surgery after already getting the bad mood, lets make sure they wake up to a (hopefully) happy memory.
+		var/datum/mood_event/surgery/target_mood_event = target.mob_mood?.mood_events[SURGERY_MOOD_CATEGORY]
+		if(!target_mood_event || target_mood_event.surgery_completed) //don't give sleeping mobs trauma. that said, if they fell asleep mid-surgery after already getting the bad mood, lets make sure they wake up to a (hopefully) happy memory.
 			return
 	switch(surgery_state)
 		if(SURGERY_STATE_STARTED)
@@ -200,8 +207,6 @@
 	)
 
 /datum/surgery_step/proc/play_preop_sound(mob/user, mob/living/carbon/target, target_zone, obj/item/tool, datum/surgery/surgery)
-	if(!preop_sound)
-		return
 	var/sound_file_use
 	if(islist(preop_sound))
 		for(var/typepath in preop_sound)//iterate and assign subtype to a list, works best if list is arranged from subtype first and parent last
@@ -210,7 +215,9 @@
 				break
 	else
 		sound_file_use = preop_sound
-	playsound(get_turf(target), sound_file_use, 75, TRUE, falloff_exponent = 12, falloff_distance = 1)
+	if(!sound_file_use)
+		return
+	playsound(target, sound_file_use, 75, TRUE, falloff_exponent = 12, falloff_distance = 1)
 
 /datum/surgery_step/proc/success(mob/user, mob/living/target, target_zone, obj/item/tool, datum/surgery/surgery, default_display_results = TRUE)
 	SEND_SIGNAL(user, COMSIG_MOB_SURGERY_STEP_SUCCESS, src, target, target_zone, tool, surgery, default_display_results)
@@ -222,6 +229,11 @@
 			span_notice("[user] succeeds!"),
 			span_notice("[user] finishes."),
 		)
+	if(ishuman(user))
+		var/mob/living/carbon/human/surgeon = user
+		surgeon.add_blood_DNA_to_items(target.get_blood_dna_list(), ITEM_SLOT_GLOVES)
+	else
+		user.add_mob_blood(target)
 	return TRUE
 
 /datum/surgery_step/proc/play_success_sound(mob/user, mob/living/carbon/target, target_zone, obj/item/tool, datum/surgery/surgery)
@@ -313,8 +325,13 @@
  * * mechanical_surgery - Boolean flag that represents if a surgery step is done on a mechanical limb (therefore does not force scream)
  */
 /datum/surgery_step/proc/display_pain(mob/living/target, pain_message, mechanical_surgery = FALSE)
+	// Determine how drunk our patient is
+	var/drunken_patient = target.get_drunk_amount()
+	// Create a probability to ignore the pain based on drunkenness level
+	var/drunken_ignorance_probability = clamp(drunken_patient, 0, 90)
+
 	if(target.stat < UNCONSCIOUS)
-		if(HAS_TRAIT(target, TRAIT_ANALGESIA))
+		if(HAS_TRAIT(target, TRAIT_ANALGESIA) || drunken_patient && prob(drunken_ignorance_probability))
 			if(!pain_message)
 				return
 			to_chat(target, span_notice("You feel a dull, numb sensation as your body is surgically operated on."))

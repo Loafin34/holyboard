@@ -36,7 +36,16 @@
 /obj/machinery/porta_turret_cover/attack_ghost(mob/user)
 	return ..() || parent_turret.attack_ghost(user)
 
-/obj/machinery/porta_turret_cover/attackby(obj/item/I, mob/user, params)
+/obj/machinery/porta_turret_cover/multitool_act(mob/living/user, obj/item/multitool/multi_tool)
+	. = NONE
+	if(parent_turret.locked)
+		return
+
+	multi_tool.set_buffer(parent_turret)
+	balloon_alert(user, "saved to multitool buffer")
+	return ITEM_INTERACT_SUCCESS
+
+/obj/machinery/porta_turret_cover/attackby(obj/item/I, mob/user, list/modifiers, list/attack_modifiers)
 	if(I.tool_behaviour == TOOL_WRENCH && !parent_turret.on)
 		if(parent_turret.raised)
 			return
@@ -61,17 +70,10 @@
 			to_chat(user, span_notice("Access denied."))
 		return
 
-	if(I.tool_behaviour == TOOL_MULTITOOL && !parent_turret.locked)
-		if(!multitool_check_buffer(user, I))
-			return
-		var/obj/item/multitool/M = I
-		M.set_buffer(parent_turret)
-		balloon_alert(user, "saved to multitool buffer")
-		return
 	return ..()
 
-/obj/machinery/porta_turret_cover/attacked_by(obj/item/I, mob/user)
-	parent_turret.attacked_by(I, user)
+/obj/machinery/porta_turret_cover/attacked_by(obj/item/I, mob/user, list/modifiers, list/attack_modifiers)
+	return parent_turret.attacked_by(I, user, modifiers)
 
 /obj/machinery/porta_turret_cover/attack_alien(mob/living/carbon/alien/adult/user, list/modifiers)
 	parent_turret.attack_alien(user, modifiers)

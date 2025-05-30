@@ -67,6 +67,7 @@ GLOBAL_LIST_INIT(paper_blanks, init_paper_blanks())
 	max_integrity = 300
 	integrity_failure = 0.33
 	interaction_flags_mouse_drop = NEED_DEXTERITY | ALLOW_RESTING
+	circuit = /obj/item/circuitboard/machine/photocopier
 
 	/// A reference to a mob on top of the photocopier trying to copy their ass. Null if there is no mob.
 	var/mob/living/ass
@@ -78,21 +79,29 @@ GLOBAL_LIST_INIT(paper_blanks, init_paper_blanks())
 	var/color_mode = PHOTO_COLOR
 	/// Indicates whether the printer is currently busy copying or not.
 	var/busy = FALSE
-	/// Variable needed to determine the selected category of forms on Photocopier.js
-	var/category
 	/// Variable that holds a reference to any object supported for photocopying inside the photocopier
 	var/obj/object_copy
 	/// Variable for the UI telling us how many copies are in the queue.
 	var/copies_left = 0
 	/// The amount of paper this photocoper starts with.
-	var/starting_paper = 30
+	var/starting_paper = 0
 	/// A stack for all the empty paper we have newly inserted (LIFO)
 	var/list/paper_stack = list()
+	/// Type path to the paper that's created when we're initalized
+	var/created_paper = /obj/item/paper
 
+/obj/machinery/photocopier/prebuilt
+	starting_paper = 30
+
+/obj/machinery/photocopier/prebuilt/Initialize(mapload)
+	toner_cartridge = new(src)
+	return ..()
 
 /obj/machinery/photocopier/Initialize(mapload)
 	. = ..()
-	toner_cartridge = new(src)
+	// Creates the paper and inserts it so we can drop it when we get destroyed/deconstructed
+	for(var/i in 1 to starting_paper)
+		paper_stack += new created_paper(src)
 	setup_components()
 	AddElement(/datum/element/elevation, pixel_shift = 8) //enough to look like your bums are on the machine.
 
@@ -149,6 +158,8 @@ GLOBAL_LIST_INIT(paper_blanks, init_paper_blanks())
 
 	static_data["blanks"] = blank_infos
 	static_data["categories"] = category_names
+	static_data["max_paper_count"] = MAX_PAPER_CAPACITY
+	static_data["max_copies"] = MAX_COPIES_AT_ONCE
 
 	return static_data
 
@@ -156,8 +167,6 @@ GLOBAL_LIST_INIT(paper_blanks, init_paper_blanks())
 	var/list/data = list()
 	data["has_item"] = !copier_empty()
 	data["num_copies"] = num_copies
-
-	data["category"] = category
 	data["copies_left"] = copies_left
 
 	if(istype(object_copy, /obj/item/photo))
@@ -181,7 +190,7 @@ GLOBAL_LIST_INIT(paper_blanks, init_paper_blanks())
 
 	return data
 
-/obj/machinery/photocopier/ui_act(action, list/params)
+/obj/machinery/photocopier/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
 	. = ..()
 	if(.)
 		return
@@ -265,10 +274,6 @@ GLOBAL_LIST_INIT(paper_blanks, init_paper_blanks())
 		if("set_copies")
 			num_copies = clamp(text2num(params["num_copies"]), 1, MAX_COPIES_AT_ONCE)
 			return TRUE
-		// Changes the forms displayed on Photocopier.js when you switch categories
-		if("choose_category")
-			category = params["category"]
-			return TRUE
 		// Called when you press print blank
 		if("print_blank")
 			if(check_busy(usr))
@@ -276,7 +281,7 @@ GLOBAL_LIST_INIT(paper_blanks, init_paper_blanks())
 			if(!(params["code"] in GLOB.paper_blanks))
 				return FALSE
 			var/list/blank = GLOB.paper_blanks[params["code"]]
-			do_copies(CALLBACK(src, PROC_REF(make_blank_print), blank), usr, PAPER_PAPER_USE, PAPER_TONER_USE, 1)
+			do_copies(CALLBACK(src, PROC_REF(make_blank_print), blank), usr, PAPER_PAPER_USE, PAPER_TONER_USE, num_copies)
 			return TRUE
 
 /// Returns the color used for the printing operation. If the color is below TONER_LOW_PERCENTAGE, it returns a gray color.
@@ -315,15 +320,14 @@ GLOBAL_LIST_INIT(paper_blanks, init_paper_blanks())
 	if(get_paper_count() < paper_use * copies_amount)
 		copies_amount = FLOOR(get_paper_count() / paper_use, 1)
 		error_message = span_warning("An error message flashes across \the [src]'s screen: \"Not enough paper to perform [copies_amount >= 1 ? "full " : ""]operation.\"")
+	if(copies_amount > 0 && (attempt_charge(src, user, (copies_amount - 1) * PHOTOCOPIER_FEE) & COMPONENT_OBJ_CANCEL_CHARGE))
+		copies_amount = 0
+		error_message = span_warning("An error message flashes across \the [src]'s screen: \"Failed to charge bank account. Aborting.\"")
 
 	copies_left = copies_amount
 
 	if(copies_amount <= 0)
 		to_chat(user, error_message)
-		reset_busy()
-		return
-
-	if(attempt_charge(src, user, (copies_amount - 1) * PHOTOCOPIER_FEE) & COMPONENT_OBJ_CANCEL_CHARGE)
 		reset_busy()
 		return
 
@@ -527,12 +531,22 @@ GLOBAL_LIST_INIT(paper_blanks, init_paper_blanks())
 
 	to_chat(user, span_notice("You take [object] out of [src]. [busy ? "The [src] comes to a halt." : ""]"))
 
+/obj/machinery/photocopier/screwdriver_act(mob/living/user, obj/item/tool)
+	. = ..()
+	if(default_deconstruction_screwdriver(user, "photocopier2", "photocopier", tool))
+		return ITEM_INTERACT_SUCCESS
+
+/obj/machinery/photocopier/crowbar_act(mob/living/user, obj/item/tool)
+	. = ..()
+	if(default_deconstruction_crowbar(tool))
+		return ITEM_INTERACT_SUCCESS
+
 /obj/machinery/photocopier/wrench_act(mob/living/user, obj/item/tool)
 	. = ..()
 	default_unfasten_wrench(user, tool)
 	return ITEM_INTERACT_SUCCESS
 
-/obj/machinery/photocopier/attackby(obj/item/object, mob/user, params)
+/obj/machinery/photocopier/attackby(obj/item/object, mob/user, list/modifiers, list/attack_modifiers)
 	if(istype(object, /obj/item/paper) || istype(object, /obj/item/photo) || istype(object, /obj/item/documents))
 		if(istype(object, /obj/item/paper))
 			var/obj/item/paper/paper = object
@@ -561,6 +575,7 @@ GLOBAL_LIST_INIT(paper_blanks, init_paper_blanks())
 /// Proc that handles insertion of empty paper, useful for copying later.
 /obj/machinery/photocopier/proc/insert_empty_paper(obj/item/paper/paper, mob/user)
 	if(istype(paper, /obj/item/paper/paperslip))
+		balloon_alert(user, "too small!")
 		return
 	if(get_paper_count() >= MAX_PAPER_CAPACITY)
 		balloon_alert(user, "cannot hold more paper!")
@@ -669,6 +684,7 @@ GLOBAL_LIST_INIT(paper_blanks, init_paper_blanks())
 	desc = "A small, lightweight cartridge of Nanotrasen ValueBrand toner. Fits photocopiers and autopainters alike."
 	icon = 'icons/obj/service/bureaucracy.dmi'
 	icon_state = "tonercartridge"
+	w_class = WEIGHT_CLASS_SMALL
 	grind_results = list(/datum/reagent/iodine = 40, /datum/reagent/iron = 10)
 	var/charges = 5
 	var/max_charges = 5
