@@ -102,6 +102,19 @@
 	time = 4 SECONDS
 	category = CAT_WEAPON_MELEE
 
+/datum/crafting_recipe/spear/pike
+	name = "Pike"
+	result = /obj/item/spear/pike
+	reqs = list(
+		/obj/item/restraints/handcuffs/cable = 1,
+		/obj/item/spear = 1,
+		/obj/item/stack/rods = 1,
+	)
+	parts = list(/obj/item/spear = 1)
+	time = 4 SECONDS
+	category = CAT_WEAPON_MELEE
+
+
 /datum/crafting_recipe/toysword
 	name = "Toy Sword"
 	reqs = list(

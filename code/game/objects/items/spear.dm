@@ -1,4 +1,5 @@
 //spears
+
 /obj/item/spear
 	name = "spear"
 	desc = "A haphazardly-constructed yet still deadly weapon of ancient design."
@@ -214,6 +215,56 @@
 		fake_clone.faction = user.faction.Copy()
 		fake_clone.Copy_Parent(user, 100, user.health/2.5, 12, 30)
 		fake_clone.GiveTarget(stabbed)
+/*
+LONGUS SPEARICUS
+*/
+/obj/item/spear/pike
+	icon_state = "glasspike0"
+	base_icon_state = "glasspike0"
+	icon_prefix = "glasspike" //change back later
+	name = "pike"
+	desc = "A frighteningly long weapon, this 'Pike' is two iron rods tied to each ends by cable with a glass shard on top. It looks fragile."
+	attack_verb_continuous = list("gores", "skewers", "impales")
+	attack_verb_simple = list("attoack", "impale", "skewer")
+
+	reach = 2 //if assistants aren't kiting security with this, i've failed
+	slot_flags = null
+	throwforce = 8 // harder to throw a big spear
+	lefthand_file = 'icons/mob/inhands/64x64_lefthand.dmi'
+	righthand_file = 'icons/mob/inhands/64x64_righthand.dmi'
+
+/obj/item/spear/pike/atom_destruction(damage_flag)
+    var/drop_loc = get_turf(src)
+    var/spear = new /obj/item/spear(drop_loc)
+    var/rod = new /obj/item/stack/rods(drop_loc)
+    var/cable = new /obj/item/stack/cable_coil(drop_loc)
+    if(ishuman(loc))
+        var/mob/living/carbon/human/owner = loc
+        owner.put_in_hands(spear)
+        owner.put_in_hands(rod)
+        owner.put_in_hands(cable)
+    return ..()
+/obj/item/spear/pike/proc/on_shield_block(mob/living/carbon/human/owner, atom/movable/hitby, attack_text = "the attack", damage = 0, attack_type = MELEE_ATTACK, damage_type = BRUTE)
+	if(damage_type == BRUTE && prob(35)) //I highkey borrowed this code from shields
+		atom_destruction()
+
+
+/obj/item/spear/pike/CheckParts(list/parts_list)
+	var/obj/item/spear/poleaxe = locate() in parts_list
+	if(!poleaxe)
+		return ..()
+	switch(poleaxe.icon_prefix)
+		if("spearplasma")
+			icon_prefix = "pikeplasma"
+		if("speartitanium")
+			icon_prefix = "piketitanium"
+		if("spearplastitanium")
+			icon_prefix = "pikeplastitanium"
+	force_unwielded = poleaxe.force_unwielded
+	force_wielded = poleaxe.force_wielded
+	AddComponent(/datum/component/two_handed, force_unwielded=force_unwielded, force_wielded=force_wielded, icon_wielded="[icon_prefix]1")
+	update_appearance()
+	return ..()
 
 //MILITARY
 /obj/item/spear/military
